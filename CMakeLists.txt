@@ -14,22 +14,22 @@ if(NOT IFEM_CONFIGURED)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${IFEM_CXX_FLAGS}")
 endif()
 
-include_directories(${IFEM_INCLUDES} 
-                    ${PROJECT_SOURCE_DIR}/../IFEM-Elasticity
-                    ${PROJECT_SOURCE_DIR}/../IFEM-Elasticity/Linear)
+set(ELASTICITY_DIR ${PROJECT_SOURCE_DIR}/../IFEM-Elasticity)
+if(NOT EXISTS ${ELASTICITY_DIR})
+  set(ELASTICITY_DIR ${PROJECT_SOURCE_DIR}/../Elasticity)
+endif()
+
+include_directories(${IFEM_INCLUDES}
+                    ${ELASTICITY_DIR}
+                    ${ELASTICITY_DIR}/Linear)
 
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
 
-add_subdirectory(../IFEM-Elasticity Elasticity)
+add_subdirectory(${ELASTICITY_DIR} Elasticity)
 
-set(DiTwi_SRCS ../IFEM-Elasticity/Linear/AnalyticSolutions.C
-               ../IFEM-Elasticity/Linear/ModalDriver.C
-               ../IFEM-Elasticity/Linear/SIMLinEl3D.C)
+set(DiTwi_SRCS ${ELASTICITY_DIR}/Linear/ModalDriver.C)
 
-add_executable(DiTwi main_DiTwi.C
-                     ../IFEM-Elasticity/Linear/AnalyticSolutions.C
-                     ../IFEM-Elasticity/Linear/ModalDriver.C
-                     ../IFEM-Elasticity/Linear/SIMLinEl3D.C)
+add_executable(DiTwi main_DiTwi.C ${DiTwi_SRCS})
 target_link_libraries(DiTwi Elasticity ${IFEM_LIBRARIES})
 
 list(APPEND CHECK_SOURCES ${DiTwi_SRCS})
@@ -39,7 +39,7 @@ install(TARGETS DiTwi DESTINATION bin COMPONENT bin)
 
 if(IFEM_COMMON_APP_BUILD)
   set(TEST_APPS ${TEST_APPS} PARENT_SCOPE)
-else()
+elseif(TEST_APPS)
   # Remove when there are unit tests in this application
   if(NOT UNIT_TEST_NUMBER)
     set(UNIT_TEST_NUMBER 0)
