@@ -13,6 +13,7 @@
 
 #include "IFEM.h"
 #include "ModalDriver.h"
+#include "NelderMead.h"
 #include "SIMLinElModal.h"
 #include "SIMargsBase.h"
 #include "Utilities.h"
@@ -20,6 +21,7 @@
 #include <fstream>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 
 
 /*!
@@ -43,6 +45,7 @@ public:
 
   bool m_solve   = false;
   bool m_advance = false;
+  double target = 0.0;
 };
 
 
@@ -61,20 +64,92 @@ public:
   //! \brief Invokes the main time stepping simulation loop.
   int solveProblem()
   {
-    // Invoke the time-step loop
     int status = 0;
+    auto backupSol = this->solution;
+
+    // Invoke the time-step loop
     while (status == 0 && this->advanceStep(params))
     {
-      auto backupSol = this->solution;
       while (!myModel.m_advance) {
         // Solve the dynamic FE problem at this time step
         if (myModel.m_solve) {
-          if (this->solveStep(params,SIM::DYNAMIC,1e-6,6) != SIM::CONVERGED)
+          auto&& conv = [this](double s_zz)
           {
-            status = 5;
-            break;
+            return sqrt(s_zz) / this->myModel.target;
+          };
+
+          auto&& func = [this,&status,backupSol](const Vector& x)
+          {
+            double s_zz;
+            myModel.setLoad(1000000,std::to_string(x[0]).c_str());
+            this->solution = backupSol;
+            if (this->solveStep(params,SIM::DYNAMIC,1e-6,6) != SIM::CONVERGED)
+            {
+              status = 5;
+              s_zz = 0;
+            }
+            else
+            {
+              Matrix sol1, sol2;
+              this->myModel.evalResults(this->realSolution(),params.time.t,sol1,sol2);
+              s_zz = sol2(6,1);
+            }
+            return pow(s_zz - this->myModel.target,2);
+          };
+
+          // Seed initial cache
+          if (cache.empty()) {
+            Vector key(1);
+            key(1) = 1e6;
+            for (size_t i = 0; i < 3; ++i) {
+              cache[sqrt(func(key))] = key(1);
+              key(1) += 1e3;
+            }
           }
+
+          using NM = NelderMead<Vector,double>;
+          std::vector<NM::Entry> vectors(3);
+
+          // find closest member
+          double dist = 1e100;
+
+          std::array<std::map<double,double>::const_iterator,3> iter;
+
+          for (auto it = cache.begin(); it != cache.end(); ++it)
+            if (std::fabs(it->first - myModel.target) < dist) {
+              dist = std::fabs(it->first - myModel.target);
+              iter[0] = it;
+            }
+
+          dist = 1e100;
+          for (auto it = cache.begin(); it != cache.end(); ++it)
+            if (it != iter[0] && std::fabs(it->first - myModel.target) < dist) {
+              dist = std::fabs(it->first - myModel.target);
+              iter[1] = it;
+            }
+
+          dist = 1e100;
+          for (auto it = cache.begin(); it != cache.end(); ++it)
+            if (it != iter[0] && it != iter[1] &&
+                std::fabs(it->first - myModel.target) < dist) {
+              dist = std::fabs(it->first - myModel.target);
+              iter[2] = it;
+            }
+
+          for (size_t i = 0; i < 3; ++i) {
+            vectors[i].key.resize(1);
+            vectors[i].key(1) = iter[i]->second;
+            vectors[i].val = iter[i]->first;
+          }
+
+
+          double s_zz;
+          auto load = NelderMead<Vector, double>::optimize(vectors, s_zz, 1, 1e-4, func, conv);
           // Print solution components at the user-defined points
+          Matrix sol1, sol2;
+          this->myModel.evalResults(this->realSolution(),params.time.t,sol1,sol2);
+          s_zz = sol2(6,1);
+          cache[s_zz] = load(1);
           this->dumpResults(params.time.t,IFEM::cout,16,true);
           IFEM::cout << "--- end of iteration ---" << std::endl;
         }
@@ -99,9 +174,9 @@ public:
     const TiXmlElement* child = elem->FirstChildElement();
     const char* value = nullptr;
     for (; child; child = child->NextSiblingElement())
-      if (!strcasecmp(child->Value(),"new_load")) {
-        value = utl::getValue(child, "new_load");
-        myModel.setLoad(1000000, value);
+      if (!strcasecmp(child->Value(),"new_target")) {
+        value = utl::getValue(child, "new_target");
+        myModel.target = std::atof(value);
         myModel.m_solve = true;
       } else if (!strcasecmp(child->Value(), "step_ok"))
         myModel.m_advance = true;
@@ -110,6 +185,7 @@ public:
   std::string GetContext() const override { return "ditwi"; }
 
 private:
+  std::map<double, double> cache;
   SIMDigitalTwin& myModel;
 };
 

@@ -3,10 +3,12 @@
 # Path of executable
 DiTwi_bin = '/home/akva/kode/IFEM/Apps/IFEM-DiTwi/r/bin/DiTwi'
 
-current_target = 5e-5
+current_target = 3.3402660055362014e-05
 ifem_pipe = 0
 
 import os
+import pickle
+import random
 import re
 import scipy.optimize
 import subprocess
@@ -26,31 +28,61 @@ def ReadValue():
      ma = re.match('.*sol2 = ', str(line))
      if not ma is None:
        arr = re.split(r' +', str(line))
-       value = float(arr[3])
+       value = float(arr[7])
        break
   return value
 
 
 def ObjectiveFunction(x):
-  print(x)
-  os.write(ifem_pipe, b'<callbacks><ditwi><new_load>%f</new_load></ditwi></callbacks>' %(x*1e6))
+  os.write(ifem_pipe, b'<callbacks><ditwi><new_target>%f</new_target></ditwi></callbacks>' %(x))
   value = ReadValue()
   print(value)
-  return value - current_target
+  return value
+
+# Load dictionary
+try:
+  p_in = open("cases.pickle", 'rb')
+  case_dict = pickle.load(p_in)
+except:
+  pass
+  case_dict = {}
+
+print(case_dict)
 
 # Start ditwi
 args = [DiTwi_bin, 'instance.xinp', '-controller']
 with subprocess.Popen(args, stdout=subprocess.PIPE) as proc:
-    time.sleep(1) # Wait for FIFO to appear
+    time.sleep(2) # Wait for FIFO to appear
     ifem_pipe = os.open('ifem-control', os.O_NONBLOCK | os.O_WRONLY)
-    res = scipy.optimize.minimize(ObjectiveFunction, 1, tol=1e-10, options={'eps':0.1})
-    print(res)
-    os.write(ifem_pipe, b'<callbacks><ditwi><step_ok/></ditwi></callbacks>')
-    current_target = 1e-4
-    res = scipy.optimize.minimize(ObjectiveFunction, res.x, tol=1e-10, options={'eps':0.1})
-    print(res)
-    os.write(ifem_pipe, b'<callbacks><ditwi><step_ok/></ditwi></callbacks>')
-    current_target = 1e-3
-    res = scipy.optimize.minimize(ObjectiveFunction, res.x, tol=1e-10, options={'eps':0.1})
-    print(res)
+    random.seed()
+    start = time.time()
+    reqs = 0
+    while True:
+        if time.time() - start > 1:
+            print('Processed %i requests at %f rps' %(reqs, reqs/(time.time()-start)))
+            start = time.time()
+
+        dict_changed = True
+        # Draw random number
+        current_target = random.uniform(0.0, 1e-4) + 1e-5
+        reqs = reqs + 1
+
+        # Find close enough key in dictionary?
+        for key in case_dict.keys():
+            if abs(current_target - key) < 5e-7:
+#                 print('Value from cache: %f -> %f' %(key, case_dict[key]))
+                dict_changed = False
+                break
+
+        if dict_changed:
+            print('Look for s_zz = %f' %(current_target))
+            load = ObjectiveFunction(current_target)
+#             res = scipy.optimize.minimize(ObjectiveFunction, 2.0, tol=3e-5, method='Nelder-Mead')
+            #print(res)
+#            if res.success:
+            case_dict[current_target] = load # res.x[0]
+            p_out = open("cases.pickle", "wb")
+            pickle.dump(case_dict, p_out)
+            p_out.close()
+#                 os.write(ifem_pipe, b'<callbacks><ditwi><step_ok/></ditwi></callbacks>')
     proc.kill()
