@@ -37,12 +37,13 @@ public:
   ~SIMDigitalTwin() {}
 
   //! \brief Redefines the (constant) traction load.
-  void setLoad(size_t propInd, const char* value)
+  void setLoad(size_t propInd, double value)
   {
     delete SIM3D::myTracs[propInd];
-    SIM3D::myTracs[propInd] = utl::parseTracFunc(value,"constant",1);
+    SIM3D::myTracs[propInd] = new PressureField(value,1);
   }
 
+  //! \brief Extracts the result quantity to optimize on.
   double getResult(const Vector& psol) const
   {
     IntVec  points;
@@ -77,7 +78,29 @@ public:
   int solveProblem(const char* infile)
   {
     int status = 0;
-    auto backupSol = this->solution;
+    double tol = 1.0e-8;
+    Vectors backupSol(this->solution);
+
+    // Lambda function for detecting convergence in optimization loop
+    auto&& conv = [this,tol](double s_zz)
+    {
+      return sqrt(s_zz) < tol*myModel.target;
+    };
+
+    // Lambda function evaluating the objective function of the optimization
+    auto&& func = [this,&status,backupSol](const Vector& x)
+    {
+      myModel.setLoad(1000000,x.front());
+      this->solution = backupSol;
+      if (this->solveStep(params,SIM::DYNAMIC,1e-6,6) != SIM::CONVERGED)
+      {
+        status = 5;
+        return myModel.target*myModel.target;
+      }
+
+      double deviation = myModel.getResult(this->realSolution()) - myModel.target;
+      return deviation*deviation;
+    };
 
     this->saveModel(infile);
 
@@ -87,45 +110,19 @@ public:
       while (!myModel.m_advance) {
         // Solve the dynamic FE problem at this time step
         if (myModel.m_solve) {
-          auto&& conv = [this](double s_zz)
-          {
-            return fabs(sqrt(s_zz) / myModel.target);
-          };
-
-          auto&& func = [this,&status,backupSol](const Vector& x)
-          {
-            double s_zz;
-            myModel.setLoad(1000000,std::to_string(x[0]).c_str());
-            this->solution = backupSol;
-            if (this->solveStep(params,SIM::DYNAMIC,1e-6,6) != SIM::CONVERGED)
-            {
-              status = 5;
-              s_zz = 0;
-            }
-            else
-              s_zz = myModel.getResult(this->realSolution());
-
-            return pow(s_zz - myModel.target,2);
-          };
 
           // Seed initial cache
           if (cache.empty()) {
             Vector key(1);
-            key(1) = 1e6;
-            for (size_t i = 0; i < 3; ++i) {
-              cache[sqrt(func(key))] = key(1);
-              key(1) += 1e3;
-            }
+            key.front() = 1e6;
+            for (size_t i = 0; i < 3; ++i, key.front() += 1e3)
+              cache[sqrt(func(key))] = key.front();
           }
 
-          using NM = NelderMead<Vector,double>;
-          std::vector<NM::Entry> vectors(3);
-
           // find closest member
-          double dist = 1e100;
-
           std::array<std::map<double,double>::const_iterator,3> iter;
 
+          double dist = 1e100;
           for (auto it = cache.begin(); it != cache.end(); ++it)
             if (std::fabs(it->first - myModel.target) < dist) {
               dist = std::fabs(it->first - myModel.target);
@@ -147,17 +144,18 @@ public:
               iter[2] = it;
             }
 
+          std::vector<NelderMead<Vector,double>::Entry> vectors(3);
           for (size_t i = 0; i < 3; ++i) {
             vectors[i].key.resize(1);
             vectors[i].key(1) = iter[i]->second;
             vectors[i].val = pow(iter[i]->first,2);
           }
 
-          double s_zz;
-          auto load = NelderMead<Vector, double>::optimize(vectors, s_zz, 1, 1e-8, func, conv);
-          // Print solution components at the user-defined points
-          s_zz = myModel.getResult(this->realSolution());
+          Vector load = NelderMead<Vector,double>::optimize(vectors,func,conv).key;
+          double s_zz = myModel.getResult(this->realSolution());
 //          cache[s_zz] = load(1);
+
+          // Print solution components at specified points
           this->dumpResults(params.time.t,IFEM::cout,16,true);
           IFEM::cout << "--- end of iteration ---" << std::endl;
         }

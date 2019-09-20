@@ -1,7 +1,4 @@
 #include <algorithm>
-#include <array>
-#include <map>
-#include <numeric>
 #include <vector>
 
 template<class Key, class Value>
@@ -13,16 +10,16 @@ struct NelderMead
   };
 
   template<class Function, class Convergence>
-  static Key optimize(std::vector<Entry>& vectors, Value& result, int dim, double tol,
-                      Function&& f, Convergence&& conv)
+  static Entry optimize(std::vector<Entry>& vectors, Function&& f, Convergence&& conv)
   {
-    bool done = conv(vectors[0].val) < tol;
-
-    while (!done) {
-      std::sort(vectors.begin(), vectors.end(), [f](const Entry& a, const Entry& b)
+    Entry best = vectors.front();
+    while (!conv(best.val)) {
+      std::sort(vectors.begin(), vectors.end(), [](const Entry& a, const Entry& b)
                                                 {
                                                   return a.val < b.val;
                                                 });
+      best = vectors.front();
+
       Key cog(vectors[0].key);
       cog.fill(0.0);
       for (size_t i = 0; i < vectors.size()-1; ++i)
@@ -30,7 +27,6 @@ struct NelderMead
 
       cog /= vectors.size()-1;
 
-      auto best = vectors.front();
       auto worst = vectors.back();
       auto second_worst = vectors[vectors.size()-2];
 
@@ -73,11 +69,8 @@ struct NelderMead
           }
         }
       }
-      done = conv(fb) < tol;
-      if (done)
-        result = fb;
     }
 
-    return vectors[0].key;
+    return vectors.front();
   } 
 };
