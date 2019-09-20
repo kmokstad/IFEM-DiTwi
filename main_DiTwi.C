@@ -43,6 +43,17 @@ public:
     SIM3D::myTracs[propInd] = utl::parseTracFunc(value,"constant",1);
   }
 
+  double getResult(const Vector& psol) const
+  {
+    IntVec  points;
+    Vec3Vec Xp;
+    Matrix  sol1, sol2;
+    for (ASMbase* pch : SIM3D::myModel)
+      this->evalResults(psol,SIM3D::myPoints.front().second,
+                        pch,points,Xp,sol1,sol2);
+    return sol2(6,1);
+  }
+
   bool m_solve   = false;
   bool m_advance = false;
   double target = 0.0;
@@ -75,7 +86,7 @@ public:
         if (myModel.m_solve) {
           auto&& conv = [this](double s_zz)
           {
-            return sqrt(s_zz) / this->myModel.target;
+            return sqrt(s_zz) / myModel.target;
           };
 
           auto&& func = [this,&status,backupSol](const Vector& x)
@@ -89,12 +100,9 @@ public:
               s_zz = 0;
             }
             else
-            {
-              Matrix sol1, sol2;
-              this->myModel.evalResults(this->realSolution(),params.time.t,sol1,sol2);
-              s_zz = sol2(6,1);
-            }
-            return pow(s_zz - this->myModel.target,2);
+              s_zz = myModel.getResult(this->realSolution());
+
+            return pow(s_zz - myModel.target,2);
           };
 
           // Seed initial cache
@@ -146,9 +154,7 @@ public:
           double s_zz;
           auto load = NelderMead<Vector, double>::optimize(vectors, s_zz, 1, 1e-4, func, conv);
           // Print solution components at the user-defined points
-          Matrix sol1, sol2;
-          this->myModel.evalResults(this->realSolution(),params.time.t,sol1,sol2);
-          s_zz = sol2(6,1);
+          s_zz = myModel.getResult(this->realSolution());
           cache[s_zz] = load(1);
           this->dumpResults(params.time.t,IFEM::cout,16,true);
           IFEM::cout << "--- end of iteration ---" << std::endl;
