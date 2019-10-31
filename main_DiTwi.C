@@ -75,10 +75,11 @@ public:
   virtual ~DigTwinDriver() {}
 
   //! \brief Invokes the main time stepping simulation loop.
-  int solveProblem(const char* infile)
+  int solveProblem()
   {
     int status = 0;
     double tol = 1.0e-8;
+    double nextSave = params.time.t + opt.dtSave;
     Vectors backupSol(this->solution);
 
     // Lambda function for detecting convergence in optimization loop
@@ -102,10 +103,8 @@ public:
       return deviation*deviation;
     };
 
-    this->saveModel(infile);
-
     // Invoke the time-step loop
-    while (status == 0 && this->advanceStep(params))
+    for (iStep = 0; status == 0 && this->advanceStep(params);)
     {
       while (!myModel.m_advance) {
         // Solve the dynamic FE problem at this time step
@@ -171,6 +170,11 @@ public:
         if (myModel.m_done)
           return 0;
       }
+
+      if (params.hasReached(nextSave) && opt.format >= 0)
+        // Save solution variables to VTF
+        status += this->saveStep(++iStep,"Projected");
+
       myModel.m_advance = false;
     }
 
@@ -224,7 +228,6 @@ private:
   \arg -ncv \a ncv : Number of Arnoldi vectors to use in the eigenvalue analysis
   \arg -shift \a shf : Shift value to use in the eigenproblem solver
 */
-
 
 int main (int argc, char** argv)
 {
@@ -331,8 +334,12 @@ int main (int argc, char** argv)
   if (!model.initSystem(LinAlg::DENSE,0,1))
     return 3;
 
+  if (model.opt.format >= 0)
+    if (!solver.saveModel(infile))
+      return 4;
+
   Elasticity::wantStrain = true;
-  return solver.solveProblem(infile);
+  return solver.solveProblem();
 }
 
 
