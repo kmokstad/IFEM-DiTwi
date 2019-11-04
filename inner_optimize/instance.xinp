@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+
+<!-- Thick cylinder.
+     Static linear-elastic analysis, quartic spline elements. -->
+
+<simulation>
+
+  <geometry>
+    <patchfile>full_model.g2</patchfile>
+    <topology>
+      <connection master="59" mface="2" slave="60" sface="1"/>
+      <connection master="58" mface="6" slave="60" sface="5"/>
+      <connection master="57" mface="6" slave="59" sface="5"/>
+      <connection master="57" mface="2" slave="58" sface="1"/>
+      <connection master="56" mface="4" slave="60" sface="2"/>
+      <connection master="55" mface="4" slave="56" sface="3"/>
+      <connection master="54" mface="6" slave="56" sface="5"/>
+      <connection master="54" mface="4" slave="58" sface="2"/>
+      <connection master="53" mface="6" slave="55" sface="5"/>
+      <connection master="53" mface="4" slave="54" sface="3"/>
+      <connection master="51" mface="4" slave="52" sface="3"/>
+      <connection master="50" mface="6" slave="52" sface="5"/>
+      <connection master="49" mface="6" slave="51" sface="5"/>
+      <connection master="49" mface="4" slave="50" sface="3"/>
+      <connection master="48" mface="2" slave="52" sface="4"/>
+      <connection master="47" mface="2" slave="48" sface="1"/>
+      <connection master="46" mface="6" slave="48" sface="5"/>
+      <connection master="46" mface="2" slave="50" sface="4"/>
+      <connection master="45" mface="6" slave="47" sface="5"/>
+      <connection master="45" mface="2" slave="46" sface="1"/>
+      <connection master="43" mface="4" slave="55" sface="3" orient="6"/>
+      <connection master="43" mface="3" slave="47" sface="1" orient="6"/>
+      <connection master="40" mface="4" slave="42" sface="2"/>
+      <connection master="40" mface="3" slave="41" sface="4"/>
+      <connection master="39" mface="2" slave="42" sface="1"/>
+      <connection master="39" mface="1" slave="41" sface="3"/>
+      <connection master="38" mface="5" slave="44" sface="6"/>
+      <connection master="38" mface="4" slave="42" sface="3"/>
+      <connection master="38" mface="3" slave="41" sface="1"/>
+      <connection master="38" mface="2" slave="40" sface="1"/>
+      <connection master="38" mface="1" slave="39" sface="3"/>
+      <connection master="37" mface="4" slave="59" sface="1" orient="4"/>
+      <connection master="37" mface="3" slave="51" sface="3" orient="4"/>
+      <connection master="34" mface="4" slave="36" sface="2"/>
+      <connection master="34" mface="3" slave="35" sface="4"/>
+      <connection master="33" mface="2" slave="36" sface="1"/>
+      <connection master="33" mface="1" slave="35" sface="3"/>
+      <connection master="32" mface="6" slave="44" sface="5"/>
+      <connection master="32" mface="4" slave="36" sface="3"/>
+      <connection master="32" mface="3" slave="35" sface="1"/>
+      <connection master="32" mface="2" slave="34" sface="1"/>
+      <connection master="32" mface="1" slave="33" sface="3"/>
+      <connection master="31" mface="5" slave="32" sface="5" orient="4"/>
+      <connection master="30" mface="6" slave="60" sface="6" orient="4"/>
+      <connection master="29" mface="6" slave="59" sface="6" orient="4"/>
+      <connection master="29" mface="4" slave="30" sface="3"/>
+      <connection master="28" mface="6" slave="30" sface="5"/>
+      <connection master="27" mface="6" slave="29" sface="5"/>
+      <connection master="27" mface="4" slave="28" sface="3"/>
+      <connection master="26" mface="6" slave="56" sface="6" orient="4"/>
+      <connection master="26" mface="2" slave="30" sface="4"/>
+      <connection master="25" mface="6" slave="55" sface="6" orient="4"/>
+      <connection master="25" mface="2" slave="26" sface="1"/>
+      <connection master="24" mface="6" slave="26" sface="5"/>
+      <connection master="24" mface="2" slave="28" sface="4"/>
+      <connection master="23" mface="6" slave="25" sface="5"/>
+      <connection master="23" mface="2" slave="24" sface="1"/>
+      <connection master="22" mface="6" slave="52" sface="6" orient="4"/>
+      <connection master="21" mface="6" slave="51" sface="6" orient="4"/>
+      <connection master="21" mface="2" slave="22" sface="1"/>
+      <connection master="20" mface="6" slave="22" sface="5"/>
+      <connection master="19" mface="6" slave="21" sface="5"/>
+      <connection master="19" mface="2" slave="20" sface="1"/>
+      <connection master="18" mface="6" slave="48" sface="6" orient="4"/>
+      <connection master="18" mface="4" slave="22" sface="2"/>
+      <connection master="17" mface="6" slave="47" sface="6" orient="4"/>
+      <connection master="17" mface="4" slave="18" sface="3"/>
+      <connection master="16" mface="6" slave="18" sface="5"/>
+      <connection master="16" mface="4" slave="20" sface="2"/>
+      <connection master="15" mface="6" slave="17" sface="5"/>
+      <connection master="15" mface="4" slave="16" sface="3"/>
+      <connection master="13" mface="4" slave="43" sface="2"/>
+      <connection master="13" mface="2" slave="25" sface="1" orient="6"/>
+      <connection master="13" mface="1" slave="17" sface="3" orient="6"/>
+      <connection master="10" mface="2" slave="12" sface="4"/>
+      <connection master="10" mface="1" slave="11" sface="2"/>
+      <connection master="9" mface="4" slave="12" sface="3"/>
+      <connection master="9" mface="3" slave="11" sface="1"/>
+      <connection master="8" mface="5" slave="14" sface="6"/>
+      <connection master="8" mface="4" slave="10" sface="3"/>
+      <connection master="8" mface="3" slave="9" sface="1"/>
+      <connection master="8" mface="2" slave="12" sface="1"/>
+      <connection master="8" mface="1" slave="11" sface="3"/>
+      <connection master="7" mface="4" slave="37" sface="2"/>
+      <connection master="7" mface="2" slave="29" sface="3" orient="4"/>
+      <connection master="7" mface="1" slave="21" sface="1" orient="4"/>
+      <connection master="4" mface="2" slave="6" sface="4"/>
+      <connection master="4" mface="1" slave="5" sface="2"/>
+      <connection master="3" mface="4" slave="6" sface="3"/>
+      <connection master="3" mface="3" slave="5" sface="1"/>
+      <connection master="2" mface="6" slave="14" sface="5"/>
+      <connection master="2" mface="4" slave="4" sface="3"/>
+      <connection master="2" mface="3" slave="3" sface="1"/>
+      <connection master="2" mface="2" slave="6" sface="1"/>
+      <connection master="2" mface="1" slave="5" sface="3"/>
+      <connection master="1" mface="5" slave="2" sface="5" orient="4"/>
+    </topology>
+
+    <topologysets>
+      <set name="fixed" type="face">
+        <item patch="8">6</item>
+        <item patch="9">6</item>
+        <item patch="10">6</item>
+        <item patch="11">6</item>
+        <item patch="12">6</item>
+        <item patch="13">6</item>
+        <item patch="15">1</item>
+        <item patch="17">1</item>
+        <item patch="23">3</item>
+        <item patch="25">3</item>
+        <item patch="38">6</item>
+        <item patch="39">6</item>
+        <item patch="40">6</item>
+        <item patch="41">6</item>
+        <item patch="42">6</item>
+        <item patch="43">6</item>
+        <item patch="45">3</item>
+        <item patch="47">3</item>
+        <item patch="53">1</item>
+        <item patch="55">1</item>
+      </set>
+      <set name="loaded" type="face">
+        <item patch="1">6</item>
+        <item patch="31">6</item>
+      </set>
+    </topologysets>
+  </geometry>
+
+  <boundaryconditions>
+    <dirichlet set="fixed" comp="123"/>
+    <neumann set="loaded" direction="1" type="expression">1.1e6</neumann>
+  </boundaryconditions>
+
+  <elasticity>
+    <isotropic E="2.05e11" nu="0.29"/>
+  </elasticity>
+
+  <newmarksolver>
+    <timestepping start="0" end="1000000" dt="0.1"/>
+  </newmarksolver>
+
+  <postprocessing>
+    <resultpoints>
+      <point patch="31" u="0.5" v="0.0" w="0.37864"/>
+    </resultpoints>
+  </postprocessing>
+
+</simulation>
