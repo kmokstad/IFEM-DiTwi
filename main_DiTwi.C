@@ -56,6 +56,7 @@ public:
 
   bool m_solve   = false;
   bool m_advance = false;
+  bool m_done    = false;
   double target = 0.0;
 };
 
@@ -73,10 +74,12 @@ public:
   virtual ~DigTwinDriver() {}
 
   //! \brief Invokes the main time stepping simulation loop.
-  int solveProblem()
+  int solveProblem(const char* infile)
   {
     int status = 0;
     auto backupSol = this->solution;
+
+    this->saveModel(infile);
 
     // Invoke the time-step loop
     while (status == 0 && this->advanceStep(params))
@@ -86,7 +89,7 @@ public:
         if (myModel.m_solve) {
           auto&& conv = [this](double s_zz)
           {
-            return sqrt(s_zz) / myModel.target;
+            return fabs(sqrt(s_zz) / myModel.target);
           };
 
           auto&& func = [this,&status,backupSol](const Vector& x)
@@ -147,15 +150,14 @@ public:
           for (size_t i = 0; i < 3; ++i) {
             vectors[i].key.resize(1);
             vectors[i].key(1) = iter[i]->second;
-            vectors[i].val = iter[i]->first;
+            vectors[i].val = pow(iter[i]->first,2);
           }
 
-
           double s_zz;
-          auto load = NelderMead<Vector, double>::optimize(vectors, s_zz, 1, 1e-4, func, conv);
+          auto load = NelderMead<Vector, double>::optimize(vectors, s_zz, 1, 1e-8, func, conv);
           // Print solution components at the user-defined points
           s_zz = myModel.getResult(this->realSolution());
-          cache[s_zz] = load(1);
+//          cache[s_zz] = load(1);
           this->dumpResults(params.time.t,IFEM::cout,16,true);
           IFEM::cout << "--- end of iteration ---" << std::endl;
         }
@@ -164,10 +166,12 @@ public:
 
         IFEM::pollControllerFifo();
 
-        if (!myModel.m_advance) {
-          this->solution = backupSol;
-          params.time.it = 0;
-        }
+//        if (!myModel.m_advance) {
+//          this->solution = backupSol;
+//          params.time.it = 0;
+//        }
+        if (myModel.m_done)
+          return 0;
       }
       myModel.m_advance = false;
     }
@@ -184,13 +188,18 @@ public:
         value = utl::getValue(child, "new_target");
         myModel.target = std::atof(value);
         myModel.m_solve = true;
-      } else if (!strcasecmp(child->Value(), "step_ok"))
+      } else if (!strcasecmp(child->Value(), "save_step"))
+        this->saveStep(++iStep,"Projected");
+      else if (!strcasecmp(child->Value(), "quit"))
+        myModel.m_done = true;
+      else if (!strcasecmp(child->Value(), "step_ok"))
         myModel.m_advance = true;
   }
 
   std::string GetContext() const override { return "ditwi"; }
 
 private:
+  int iStep = 0;
   std::map<double, double> cache;
   SIMDigitalTwin& myModel;
 };
@@ -325,7 +334,7 @@ int main (int argc, char** argv)
     return 3;
 
   Elasticity::wantStrain = true;
-  return solver.solveProblem();
+  return solver.solveProblem(infile);
 }
 
 
