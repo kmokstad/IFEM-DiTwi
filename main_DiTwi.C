@@ -15,10 +15,8 @@
 #include "ModalDriver.h"
 #include "NelderMead.h"
 #include "SIMLinElModal.h"
-#include "SIMargsBase.h"
 #include "Utilities.h"
 #include "Profiler.h"
-#include <fstream>
 #include <stdlib.h>
 #include <string.h>
 #include <string>
@@ -54,11 +52,6 @@ public:
                         pch,points,Xp,sol1,sol2);
     return sol2(6,1);
   }
-
-  bool m_solve   = false;
-  bool m_advance = false;
-  bool m_done    = false;
-  double target = 0.0;
 };
 
 
@@ -70,7 +63,13 @@ class DigTwinDriver : public ModalDriver, public ControlCallback
 {
 public:
   //! \brief The constructor forwards to the parent class constructor.
-  explicit DigTwinDriver(SIMDigitalTwin& sim) : ModalDriver(sim), myModel(sim) {}
+  explicit DigTwinDriver(SIMDigitalTwin& sim) : ModalDriver(sim), myModel(sim)
+  {
+    myTarget = 0.0;
+    m_solve = m_advance = m_done = false;
+    iStep = 0;
+  }
+
   //! \brief Empty destructor.
   virtual ~DigTwinDriver() {}
 
@@ -85,7 +84,7 @@ public:
     // Lambda function for detecting convergence in optimization loop
     auto&& conv = [this,tol](double s_zz)
     {
-      return sqrt(s_zz) < tol*myModel.target;
+      return sqrt(s_zz) < tol*myTarget;
     };
 
     // Lambda function evaluating the objective function of the optimization
@@ -96,19 +95,19 @@ public:
       if (this->solveStep(params,SIM::DYNAMIC,1e-6,6) != SIM::CONVERGED)
       {
         status = 5;
-        return myModel.target*myModel.target;
+        return myTarget*myTarget;
       }
 
-      double deviation = myModel.getResult(this->realSolution()) - myModel.target;
+      double deviation = myModel.getResult(this->realSolution()) - myTarget;
       return deviation*deviation;
     };
 
     // Invoke the time-step loop
     for (iStep = 0; status == 0 && this->advanceStep(params);)
     {
-      while (!myModel.m_advance) {
+      while (status == 0 && !m_advance) {
         // Solve the dynamic FE problem at this time step
-        if (myModel.m_solve) {
+        if (m_solve) {
 
           // Seed initial cache
           if (cache.empty()) {
@@ -123,23 +122,23 @@ public:
 
           double dist = 1e100;
           for (auto it = cache.begin(); it != cache.end(); ++it)
-            if (std::fabs(it->first - myModel.target) < dist) {
-              dist = std::fabs(it->first - myModel.target);
+            if (std::fabs(it->first - myTarget) < dist) {
+              dist = std::fabs(it->first - myTarget);
               iter[0] = it;
             }
 
           dist = 1e100;
           for (auto it = cache.begin(); it != cache.end(); ++it)
-            if (it != iter[0] && std::fabs(it->first - myModel.target) < dist) {
-              dist = std::fabs(it->first - myModel.target);
+            if (it != iter[0] && std::fabs(it->first - myTarget) < dist) {
+              dist = std::fabs(it->first - myTarget);
               iter[1] = it;
             }
 
           dist = 1e100;
           for (auto it = cache.begin(); it != cache.end(); ++it)
             if (it != iter[0] && it != iter[1] &&
-                std::fabs(it->first - myModel.target) < dist) {
-              dist = std::fabs(it->first - myModel.target);
+                std::fabs(it->first - myTarget) < dist) {
+              dist = std::fabs(it->first - myTarget);
               iter[2] = it;
             }
 
@@ -159,15 +158,15 @@ public:
           IFEM::cout << "--- end of iteration ---" << std::endl;
         }
 
-        myModel.m_solve = false;
+        m_solve = false;
 
         IFEM::pollControllerFifo();
 
-//        if (!myModel.m_advance) {
+//        if (!m_advance) {
 //          this->solution = backupSol;
 //          params.time.it = 0;
 //        }
-        if (myModel.m_done)
+        if (m_done)
           return 0;
       }
 
@@ -175,10 +174,10 @@ public:
         // Save solution variables to VTF
         status += this->saveStep(++iStep,"Projected");
 
-      myModel.m_advance = false;
+      m_advance = false;
     }
 
-    return 0;
+    return status;
   }
 
   void OnControl(const TiXmlElement* elem) override
@@ -186,24 +185,28 @@ public:
     const TiXmlElement* child = elem->FirstChildElement();
     const char* value = nullptr;
     for (; child; child = child->NextSiblingElement())
-      if (!strcasecmp(child->Value(),"new_target")) {
-        value = utl::getValue(child, "new_target");
-        myModel.target = std::atof(value);
-        myModel.m_solve = true;
-      } else if (!strcasecmp(child->Value(), "save_step"))
+      if ((value = utl::getValue(child,"new_target"))) {
+        myTarget = std::atof(value);
+        m_solve = true;
+      }
+      else if (!strcasecmp(child->Value(), "save_step"))
         this->saveStep(++iStep,"Projected");
       else if (!strcasecmp(child->Value(), "quit"))
-        myModel.m_done = true;
-      else if (!strcasecmp(child->Value(), "step_ok"))
-        myModel.m_advance = true;
+        m_done = true;
+      else if (!strcasecmp(child->Value(),"step_ok"))
+        m_advance = true;
   }
 
   std::string GetContext() const override { return "ditwi"; }
 
 private:
-  int iStep = 0;
-  std::map<double, double> cache;
-  SIMDigitalTwin& myModel;
+  int                     iStep;
+  std::map<double,double> cache;
+  bool                    m_solve;
+  bool                    m_advance;
+  bool                    m_done;
+  double                  myTarget;
+  SIMDigitalTwin&         myModel;
 };
 
 
@@ -232,45 +235,34 @@ private:
 int main (int argc, char** argv)
 {
   Profiler prof(argv[0]);
-  utl::profiler->start("Initialization");
 
   bool dumpModes = false;
   char* infile = nullptr;
-  SIMargsBase args("elasticity");
 
   IFEM::Init(argc,argv,"Linear Elasticity solver");
 
   for (int i = 1; i < argc; i++)
-    if (argv[i] == infile || args.parseArg(argv[i]))
-      ; // ignore the input file on the second pass
-    else if (SIMoptions::ignoreOldOptions(argc,argv,i))
+    if (SIMoptions::ignoreOldOptions(argc,argv,i))
       ; // ignore the obsolete option
     else if (!strcmp(argv[i],"-principal"))
       Elasticity::wantPrincipalStress = true;
     else if (!strcmp(argv[i],"-dumpModes"))
       dumpModes = true;
     else if (!infile)
-    {
       infile = argv[i];
-      if (strcasestr(infile,".xinp"))
-      {
-        if (!args.readXML(infile,false))
-          return 1;
-        i = 0; // start over and let command-line options override input file
-      }
-    }
     else
       std::cerr <<"  ** Unknown option ignored: "<< argv[i] << std::endl;
 
   if (!infile)
   {
-    std::cout <<"usage: "<< argv[0] <<" <inputfile>\n";
+    std::cout <<"usage: "<< argv[0]
+              <<" <inputfile> [-principal] [-dumpModes]\n";
     return 0;
   }
 
   IFEM::cout <<"\nInput file: "<< infile;
-  IFEM::getOptions().print(IFEM::cout);
-  utl::profiler->stop("Initialization");
+  IFEM::getOptions().print(IFEM::cout) << std::endl;
+
   utl::profiler->start("Model input");
 
   // Create the simulation model
@@ -288,6 +280,7 @@ int main (int argc, char** argv)
 
   utl::profiler->stop("Model input");
 
+  // Establish the FE data structures
   if (!model.preprocess())
     return 7;
 
