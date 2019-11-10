@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 
-<!-- Thick cylinder.
-     Static linear-elastic analysis, quartic spline elements. -->
+<!-- Digital twin model of two metal rods in a rectangular support box. -->
 
 <simulation>
 
@@ -53,8 +52,10 @@
 
   <postprocessing>
     <vtfformat>BINARY</vtfformat>
-    <resultpoints>
-      <point patch="31" u="0.5" v="0.0" w="0.37864"/>
+    <resultpoints vtfsize="0.005">
+      <point patch="1"  u="0.0" v="0.5" w="0.2582524"/>
+      <point patch="1"  u="0.5" v="1.0" w="0.2582524"/>
+      <point patch="37" u="0.5" v="1.0" w="0.0"/>
     </resultpoints>
   </postprocessing>
 
