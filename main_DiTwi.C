@@ -50,7 +50,7 @@ public:
     for (ASMbase* pch : SIM3D::myModel)
       this->evalResults(psol,SIM3D::myPoints.front().second,
                         pch,points,Xp,sol1,sol2);
-    return sol2(6,1);
+    return sol2(3,1); // eps_zz in result point 1
   }
 };
 
@@ -65,7 +65,7 @@ public:
   //! \brief The constructor forwards to the parent class constructor.
   explicit DigTwinDriver(SIMDigitalTwin& sim) : ModalDriver(sim), myModel(sim)
   {
-    myTarget = 0.0;
+    myTarget = 1.0e-4; // Default target strain
     m_solve = m_advance = m_done = false;
     iStep = 0;
   }
@@ -158,9 +158,16 @@ public:
           IFEM::cout << "--- end of iteration ---" << std::endl;
         }
 
-        m_solve = false;
-
-        IFEM::pollControllerFifo();
+        if (IFEM::pollControllerFifo())
+          m_solve = false;
+        else if (!m_solve)
+          m_solve = true;
+        else
+        {
+          // Dry-run without external control, just continue
+          m_advance = true;
+          m_solve = false;
+        }
 
 //        if (!m_advance) {
 //          this->solution = backupSol;
