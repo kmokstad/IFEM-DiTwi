@@ -12,14 +12,13 @@
 //==============================================================================
 
 #include "IFEM.h"
+#include "SIMLinElModal.h"
 #include "ModalDriver.h"
 #include "NelderMead.h"
-#include "SIMLinElModal.h"
 #include "Utilities.h"
 #include "Profiler.h"
 #include <stdlib.h>
 #include <string.h>
-#include <string>
 
 
 /*!
@@ -63,7 +62,7 @@ class DigTwinDriver : public ModalDriver, public ControlCallback
 {
 public:
   //! \brief The constructor forwards to the parent class constructor.
-  explicit DigTwinDriver(SIMDigitalTwin& sim) : ModalDriver(sim), myModel(sim)
+  DigTwinDriver(SIMDigitalTwin& sim, bool q) : ModalDriver(sim,q), myModel(sim)
   {
     myTarget = 1.0e-4; // Default target strain
     m_solve = m_advance = m_done = false;
@@ -76,6 +75,9 @@ public:
   //! \brief Invokes the main time stepping simulation loop.
   int solveProblem()
   {
+    if (!myModel.hasResultPoints())
+      return 2;
+
     int status = 0;
     double tol = 1.0e-8;
     double nextSave = params.time.t + opt.dtSave;
@@ -199,7 +201,7 @@ public:
         this->saveStep(++iStep,"Projected");
       else if (!strcasecmp(child->Value(), "quit"))
         m_done = true;
-      else if (!strcasecmp(child->Value(),"step_ok"))
+      else if (!strcasecmp(child->Value(), "step_ok"))
         m_advance = true;
   }
 
@@ -243,6 +245,7 @@ int main (int argc, char** argv)
   Profiler prof(argv[0]);
 
   bool dumpModes = false;
+  bool qStatic = false;
   char* infile = nullptr;
 
   IFEM::Init(argc,argv,"Linear Elasticity solver");
@@ -254,6 +257,8 @@ int main (int argc, char** argv)
       Elasticity::wantPrincipalStress = true;
     else if (!strcmp(argv[i],"-dumpModes"))
       dumpModes = true;
+    else if (!strcmp(argv[i],"-qStatic"))
+      qStatic = true;
     else if (!infile)
       infile = argv[i];
     else
@@ -262,7 +267,7 @@ int main (int argc, char** argv)
   if (!infile)
   {
     std::cout <<"usage: "<< argv[0]
-              <<" <inputfile> [-principal] [-dumpModes]\n";
+              <<" <inputfile> [-principal] [-dumpModes] [-qStatic]\n";
     return 0;
   }
 
@@ -274,7 +279,7 @@ int main (int argc, char** argv)
   // Create the simulation model
   std::vector<Mode> modes;
   SIMDigitalTwin    model(modes);
-  DigTwinDriver     solver(model);
+  DigTwinDriver     solver(model,qStatic);
 
   // Read in model definitions
   if (!solver.read(infile))
@@ -322,7 +327,9 @@ int main (int argc, char** argv)
 
   // Initialize the modal time-domain simulation
   solver.initPrm();
-  solver.initSolution(modes.size(),3);
+  // Set beta=0 for quasi-static simulation
+  if (qStatic) model.setIntegrationPrm(2,0.0);
+  solver.initSolution(modes.size(), qStatic ? 1 : 3);
   solver.printProblem();
 
   IFEM::registerCallback(solver);
