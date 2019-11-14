@@ -1,11 +1,5 @@
 #!/usr/bin/python3
 
-# Path of executable
-DiTwi_bin = '/home/akva/kode/IFEM/Apps/IFEM-DiTwi/r/bin/DiTwi'
-
-current_target = 3.3402660055362014e-05
-ifem_pipe = 0
-
 import os
 import pickle
 import random
@@ -13,6 +7,14 @@ import re
 import scipy.optimize
 import subprocess
 import time
+
+# Path of executable
+if 'DITWI_EXE' in os.environ:
+  DiTwi_bin = os.environ['DITWI_EXE']
+else:
+  DiTwi_bin = '/home/akva/kode/IFEM/Apps/IFEM-DiTwi/r/bin/DiTwi'
+
+ifem_pipe = 0
 
 def get_lines_until(func, sentinel):
   while True:
