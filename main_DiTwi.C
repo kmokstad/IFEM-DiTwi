@@ -158,15 +158,14 @@ public:
           IFEM::cout << "--- end of iteration ---" << std::endl;
         }
 
-        if (IFEM::pollControllerFifo())
-          m_solve = false;
-        else if (!m_solve)
-          m_solve = true;
-        else
+        m_solve = false;
+
+        if (!IFEM::pollControllerFifo())
         {
-          // Dry-run without external control, just continue
-          m_advance = true;
-          m_solve = false;
+          // Dry-run without external control, just continue after solving
+          m_solve = !m_solve;
+          if (!m_solve)
+            m_advance = true;
         }
 
 //        if (!m_advance) {
