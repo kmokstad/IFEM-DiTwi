@@ -40,21 +40,20 @@ def ReadValue():
 
 
 def ObjectiveFunction(x):
+  print('Look for s_zz = %f' % (x))
   os.write(ifem_pipe, b'<callbacks><ditwi><new_target>%f</new_target></ditwi></callbacks>' %(x))
   value = ReadValue()
-  print(value)
+  print('Got %f' % (value))
   return value
 
 # Start ditwi
-args = [DiTwi_bin, 'instance.xinp', '-controller', '-vtf', '1']
+args = [DiTwi_bin, 'instance.xinp', '-controller']
 with subprocess.Popen(args, stdout=subprocess.PIPE) as proc:
     time.sleep(2) # Wait for FIFO to appear
     ifem_pipe = os.open('ifem-control', os.O_NONBLOCK | os.O_WRONLY)
     for i in range(1,N):
         # Draw random number
         current_target = MAX * math.sin(2*math.pi/N*i)
-
-        print('Look for s_zz = %f' %(current_target))
         load = ObjectiveFunction(current_target)
         os.write(ifem_pipe, b'<callbacks><ditwi><save_step/><step_ok/></ditwi></callbacks>')
     os.write(ifem_pipe, b'<callbacks><ditwi><quit/></ditwi></callbacks>')

@@ -14,6 +14,8 @@ if 'DITWI_EXE' in os.environ:
 else:
   DiTwi_bin = '/home/akva/kode/IFEM/Apps/IFEM-DiTwi/r/bin/DiTwi'
 
+#current_target = 3.3402660055362014e-05
+current_target = 3.492070221125432e-4
 ifem_pipe = 0
 
 def get_lines_until(func, sentinel):
